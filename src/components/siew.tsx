@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react"
 import { useAccount, useConnect, useSignMessage } from "wagmi"
-import { authClient } from "../lib/validation/auth-client"
+import { authClient } from "../lib/auth-client"
 import { toast } from "sonner";
 
 export default function LoginWithEthereum() {
