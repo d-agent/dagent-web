@@ -37,8 +37,8 @@ const navItems = [
     link: "/api-manage",
   },
   {
-    name: "Add Agents",
-    link: "/add-agents",
+    name: "Agents",
+    link: "/agents",
   },
 
   {
