@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { SimpleBarChart, SimpleLineChart } from '@/components/ui/simple-charts';
 import { ApiKey } from '@/components/ui/api-key';
+import { useCreateApiKey, useDeleteApiKey, useGetApiKey, useGetApiKeyList } from '@/hooks/apikey';
 
 // Sample data
 const monthlyUsageData = [
@@ -56,9 +57,12 @@ const sampleApiKeys = [
 export default function ApiManagementPage() {
     const [newKeyName, setNewKeyName] = useState('');
     const [selectedPermissions, setSelectedPermissions] = useState<string[]>(['read']);
+    const {mutateAsync: CreateApiKeyMuatation} = useCreateApiKey();
+    const {data} = useGetApiKeyList();
 
     const handleCreateKey = (e: React.FormEvent) => {
         e.preventDefault();
+        CreateApiKeyMuatation(newKeyName)
         // Logic to create a new API key would go here
         console.log('Creating key:', { name: newKeyName, permissions: selectedPermissions });
         setNewKeyName('');
@@ -117,7 +121,7 @@ export default function ApiManagementPage() {
                     </button>
                 </div>
                 <div className="space-y-4">
-                    {sampleApiKeys.map(key => (
+                    {data!.map(key => (
                         <ApiKey key={key.id} {...key} />
                     ))}
                 </div>

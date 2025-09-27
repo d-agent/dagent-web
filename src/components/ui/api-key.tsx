@@ -2,35 +2,42 @@
 
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useDeleteApiKey } from '@/hooks/apikey';
 
 interface ApiKeyProps {
     id: string;
-    name: string;
-    created: string;
-    lastUsed: string | null;
-    status: 'active' | 'expired' | 'revoked';
-    prefix: string;
-    permissions: string[];
+    name: string | null;
+    createdAt: Date;
+    lastRequest: Date | null;
+    enabled: boolean;
+    prefix: string | null;
+    permissions: { [key: string]: string[] } | null;
     className?: string;
 }
 
 export const ApiKey: React.FC<ApiKeyProps> = ({
     id,
     name,
-    created,
-    lastUsed,
-    status,
+    createdAt,
+    lastRequest,
+    enabled,
     prefix,
     permissions,
     className,
 }) => {
     const [showMenu, setShowMenu] = useState(false);
+    const { mutateAsync: DeleteApiKeyMutation } = useDeleteApiKey();
 
     const statusStyles = {
-        active: 'bg-green-500/10 text-green-600 border-green-500/20',
-        expired: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-        revoked: 'bg-red-500/10 text-red-600 border-red-500/20',
+        true: 'bg-green-500/10 text-green-600 border-green-500/20',
+        // expired: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+        false: 'bg-red-500/10 text-red-600 border-red-500/20',
     };
+
+    const handleApiRevoke = (id: string) => {
+        const res = DeleteApiKeyMutation(id)
+        setShowMenu(false)
+    }
 
     return (
         <div className={cn('border border-border rounded-lg p-4', className)}>
@@ -41,15 +48,15 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
                         <span
                             className={cn(
                                 'text-xs px-2 py-0.5 rounded-full border',
-                                statusStyles[status]
+                                statusStyles[enabled ? 'true' : 'false']
                             )}
                         >
-                            {status}
+                            {enabled ? 'Enabled' : 'Revoked'}
                         </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                        Created on {created}
-                        {lastUsed && ` • Last used ${lastUsed}`}
+                        Created on {new Date(createdAt).toLocaleDateString()}
+                        {lastRequest && ` • Last used ${lastRequest}`}
                     </div>
                 </div>
                 <div className="relative">
@@ -86,7 +93,7 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
                             </button>
                             <button
                                 className="w-full text-left px-3 py-1.5 text-xs hover:bg-secondary text-red-500"
-                                onClick={() => setShowMenu(false)}
+                                onClick={() => handleApiRevoke(id)}
                             >
                                 Revoke
                             </button>
@@ -99,16 +106,18 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
                     {prefix}...
                 </div>
             </div>
-            {permissions.length > 0 && (
+            {permissions && Object.keys(permissions).length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1">
-                    {permissions.map((permission) => (
-                        <span
-                            key={permission}
-                            className="px-1.5 py-0.5 bg-secondary rounded text-xs text-secondary-foreground"
-                        >
-                            {permission}
-                        </span>
-                    ))}
+                    {Object.entries(permissions).map(([key, values]) =>
+                        values.map((permission) => (
+                            <span
+                                key={`${key}-${permission}`}
+                                className="px-1.5 py-0.5 bg-secondary rounded text-xs text-secondary-foreground"
+                            >
+                                {permission}
+                            </span>
+                        ))
+                    )}
                 </div>
             )}
         </div>
