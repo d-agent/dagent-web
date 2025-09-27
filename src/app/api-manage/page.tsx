@@ -121,7 +121,7 @@ export default function ApiManagementPage() {
                     </button>
                 </div>
                 <div className="space-y-4">
-                    {data!.map(key => (
+                    {data?.map(key => (
                         <ApiKey key={key.id} {...key} />
                     ))}
                 </div>

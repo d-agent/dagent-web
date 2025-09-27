@@ -1,5 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 import { env } from "../config/env";
+import { apiClient } from ".";
 
 // Types for API Key operations
 export interface ApiKey {
@@ -50,17 +51,6 @@ export interface VerifyApiKeyResponse {
 export interface DeleteApiKeyResponse {
   success: boolean;
 }
-
-// Create axios instance with base configuration
-const apiClient = axios.create({
-  baseURL:
-    env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:3000",
-  timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
 
 // Add request interceptor for authentication
 // apiClient.interceptors.request.use(
