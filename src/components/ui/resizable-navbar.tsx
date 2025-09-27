@@ -31,6 +31,8 @@ interface NavItemsProps {
   className?: string;
   onItemClick?: () => void;
   currentPath?: string;
+  disabled?: boolean;
+  disabledTooltip?: string;
 }
 
 interface MobileNavProps {
@@ -76,9 +78,9 @@ export const Navbar = ({ children, className }: NavbarProps) => {
       {React.Children.map(children, (child) =>
         React.isValidElement(child)
           ? React.cloneElement(
-              child as React.ReactElement<{ visible?: boolean }>,
-              { visible },
-            )
+            child as React.ReactElement<{ visible?: boolean }>,
+            { visible },
+          )
           : child,
       )}
     </motion.div>
@@ -115,12 +117,16 @@ export const NavBody = ({ children, className, visible }: NavBodyProps) => {
   );
 };
 
-export const NavItems = ({ items, className, onItemClick, currentPath }: NavItemsProps) => {
+export const NavItems = ({ items, className, onItemClick, currentPath, disabled = false, disabledTooltip }: NavItemsProps) => {
   const [hovered, setHovered] = useState<number | null>(null);
+  const [showTooltip, setShowTooltip] = useState<boolean>(false);
 
   return (
     <motion.div
-      onMouseLeave={() => setHovered(null)}
+      onMouseLeave={() => {
+        setHovered(null);
+        setShowTooltip(false);
+      }}
       className={cn(
         "absolute inset-0 hidden flex-1 flex-row items-center justify-center space-x-2 text-sm font-medium text-zinc-600 transition duration-200 hover:text-zinc-800 lg:flex lg:space-x-2",
         className,
@@ -128,6 +134,52 @@ export const NavItems = ({ items, className, onItemClick, currentPath }: NavItem
     >
       {items.map((item, idx) => {
         const isActive = currentPath === item.link;
+
+        if (disabled) {
+          return (
+            <div
+              key={`disabled-link-${idx}`}
+              className="relative"
+              onMouseEnter={() => {
+                setHovered(idx);
+                if (disabledTooltip) setShowTooltip(true);
+              }}
+              onMouseLeave={() => {
+                setHovered(null);
+                setShowTooltip(false);
+              }}
+            >
+              <div
+                className={cn(
+                  "relative px-4 py-2 transition-colors duration-200 cursor-not-allowed opacity-50",
+                  "text-neutral-400 dark:text-neutral-600"
+                )}
+              >
+                {hovered === idx && (
+                  <motion.div
+                    layoutId="hovered"
+                    className="absolute inset-0 h-full w-full rounded-full bg-gray-50 dark:bg-neutral-900"
+                  />
+                )}
+                <span className="relative z-20">{item.name}</span>
+              </div>
+
+              {/* Tooltip */}
+              {showTooltip && hovered === idx && disabledTooltip && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-black text-white text-xs rounded-md whitespace-nowrap z-50 shadow-lg"
+                >
+                  {disabledTooltip}
+                  <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-black rotate-45"></div>
+                </motion.div>
+              )}
+            </div>
+          );
+        }
+
         return (
           <Link
             key={`link-${idx}`}
@@ -136,8 +188,8 @@ export const NavItems = ({ items, className, onItemClick, currentPath }: NavItem
             onClick={onItemClick}
             className={cn(
               "relative px-4 py-2 transition-colors duration-200",
-              isActive 
-                ? "text-blue-600 dark:text-blue-400 font-semibold" 
+              isActive
+                ? "text-blue-600 dark:text-blue-400 font-semibold"
                 : "text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100"
             )}
           >
@@ -146,8 +198,8 @@ export const NavItems = ({ items, className, onItemClick, currentPath }: NavItem
                 layoutId="hovered"
                 className={cn(
                   "absolute inset-0 h-full w-full rounded-full",
-                  isActive 
-                    ? "bg-blue-100 dark:bg-blue-900/30" 
+                  isActive
+                    ? "bg-blue-100 dark:bg-blue-900/30"
                     : "bg-gray-100 dark:bg-neutral-800"
                 )}
               />
@@ -276,9 +328,9 @@ export const NavbarButton = ({
   className?: string;
   variant?: "primary" | "secondary" | "dark" | "gradient";
 } & (
-  | React.ComponentPropsWithoutRef<"a">
-  | React.ComponentPropsWithoutRef<"button">
-)) => {
+    | React.ComponentPropsWithoutRef<"a">
+    | React.ComponentPropsWithoutRef<"button">
+  )) => {
   const baseStyles =
     "px-4 py-2 rounded-md bg-white button bg-white text-black text-sm font-bold relative cursor-pointer hover:-translate-y-0.5 transition duration-200 inline-block text-center";
 
