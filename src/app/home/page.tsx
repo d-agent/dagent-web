@@ -6,12 +6,8 @@ import { WalletConnection } from "@/components/wallet/wallet-connection";
 import { StakingDashboard } from "@/components/wallet/staking-dashboard";
 import { AgentMarketplace } from "@/components/agents/agent-marketplace";
 import { StakedAgents } from "@/components/agents/staked-agents";
-import { useStake } from "@/hooks/contracts";
 // Dummy staking data for demo
-const stakingData = {
-  totalStaked: "12.500",
-  contractAddress: "0xA1b2C3d4E5F6g7H8i9J0K1L2M3N4O5P6Q7R8S9T0"
-};
+
 
 export default function Home() {
   const [selectedSection, setSelectedSection] = useState<'your-agents' | 'staked-agents' | null>("your-agents");
@@ -53,9 +49,9 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Total Staked - Main Attraction */}
             <section className="flex flex-col items-center justify-center">
-              <div className="w-full">
-                <StakingDashboard {...stakingData} />
-              </div>
+                <div className="w-full">
+                <StakingDashboard />
+                </div>
             </section>
 
             {/* Connected Wallets & Balances */}
