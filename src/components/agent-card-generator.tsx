@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useLLM } from "@/hooks";
 import {
     Dialog,
     DialogContent,
@@ -18,6 +19,11 @@ const agentCardGeneratorSchema = z.object({
     name: z.string().min(3, "Name must be at least 3 characters"),
     description: z.string().min(10, "Description must be at least 10 characters"),
     version: z.string().min(1, "Version is required"),
+    llmProvider: z.string().min(1, "LLM Provider is required"),
+    llmModel: z.string().min(1, "LLM Model is required"),
+    costPerToken: z.coerce.number().positive("Cost per token must be positive"),
+    inputCostPer1M: z.coerce.number().nonnegative().optional(),
+    outputCostPer1M: z.coerce.number().nonnegative().optional(),
     endpoint1Url: z.string().url("Must be a valid URL"),
     endpoint1Type: z.string().min(1, "Endpoint type is required"),
     endpoint2Url: z.string().url("Must be a valid URL").optional().or(z.literal("")),
@@ -25,6 +31,9 @@ const agentCardGeneratorSchema = z.object({
     authType: z.string().min(1, "Authentication type is required"),
     authFlow: z.string().optional().or(z.literal("")),
     streamingSupport: z.boolean().default(false),
+    supportsStreaming: z.boolean().default(false),
+    supportsMultiAgent: z.boolean().default(false),
+    maxTotalAgentCost: z.coerce.number().nonnegative().optional(),
     pushNotifications: z.boolean().default(false),
     fileUploadSupport: z.boolean().default(false),
     skills: z.string().optional(),
@@ -47,16 +56,39 @@ export function AgentCardGenerator({
 }: AgentCardGeneratorProps) {
     const [generatedJson, setGeneratedJson] = useState<string | null>(null);
 
+    // Use LLM hook for provider and model management
+    const {
+        providers,
+        models: availableModels,
+        selectedProvider,
+        selectedModel,
+        isLoadingModels,
+        error: modelError,
+        setProvider,
+        setModel,
+        clearError,
+    } = useLLM({ autoFetchOnProviderChange: true });
+
     const {
         register,
         handleSubmit,
         formState: { errors },
         reset,
+        setValue,
+        watch,
     } = useForm<AgentCardGeneratorValues>({
         resolver: zodResolver(agentCardGeneratorSchema) as any, // Type casting to avoid TypeScript errors
         defaultValues: {
             version: "1.0.0",
+            llmProvider: "",
+            llmModel: "",
+            costPerToken: 0.0005,
+            inputCostPer1M: 0,
+            outputCostPer1M: 0,
             streamingSupport: true,
+            supportsStreaming: true,
+            supportsMultiAgent: false,
+            maxTotalAgentCost: 1.0,
             pushNotifications: false,
             fileUploadSupport: false,
             defaultInputMethod: "text",
@@ -65,6 +97,10 @@ export function AgentCardGenerator({
             authFlow: "client_credentials",
         },
     });
+
+    // Watch the current form values
+    const currentInputCost = watch("inputCostPer1M");
+    const currentOutputCost = watch("outputCostPer1M");
 
     const generateCardJson = (data: AgentCardGeneratorValues) => {
         // Parse skills from comma-separated string to array
@@ -98,6 +134,15 @@ export function AgentCardGenerator({
             name: data.name,
             description: data.description,
             version: data.version,
+            llmProvider: data.llmProvider,
+            llmModel: data.llmModel,
+            costPerToken: data.costPerToken,
+            inputCostPer1M: data.inputCostPer1M,
+            outputCostPer1M: data.outputCostPer1M,
+            skills: skillsArray,
+            supportsStreaming: data.supportsStreaming,
+            supportsMultiAgent: data.supportsMultiAgent,
+            maxTotalAgentCost: data.maxTotalAgentCost,
             endpoints,
             authentication: {
                 type: data.authType,
@@ -108,7 +153,6 @@ export function AgentCardGenerator({
                 push_notifications: data.pushNotifications,
                 file_upload: data.fileUploadSupport,
             },
-            skills: skillsArray,
             input_methods: {
                 default: data.defaultInputMethod,
                 supported: supportedInputArray,
@@ -149,7 +193,7 @@ export function AgentCardGenerator({
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="min-w-[80vw] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Generate Agent Card JSON</DialogTitle>
                     <DialogDescription>
@@ -211,6 +255,171 @@ export function AgentCardGenerator({
                             {errors.description && (
                                 <p className="text-xs text-red-500">{errors.description.message}</p>
                             )}
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-medium border-b pb-2">LLM Configuration</h3>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label htmlFor="llmProvider" className="text-sm font-medium">
+                                    LLM Provider
+                                </label>
+                                <select
+                                    id="llmProvider"
+                                    className={`w-full px-3 py-2 border rounded-md ${errors.llmProvider ? "border-red-500" : "border-border/30"
+                                        } bg-background`}
+                                    {...register("llmProvider")}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setValue("llmProvider", value);
+                                        setProvider(value);
+                                        clearError();
+                                        // Reset model and costs when provider changes
+                                        setValue("llmModel", "");
+                                        setValue("inputCostPer1M", 0);
+                                        setValue("outputCostPer1M", 0);
+                                    }}
+                                >
+                                    <option value="">Select Provider</option>
+                                    {providers.map((provider) => (
+                                        <option key={provider.value} value={provider.value}>
+                                            {provider.displayName}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.llmProvider && (
+                                    <p className="text-xs text-red-500">{errors.llmProvider.message}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="llmModel" className="text-sm font-medium">
+                                    LLM Model
+                                </label>
+                                <select
+                                    id="llmModel"
+                                    className={`w-full px-3 py-2 border rounded-md ${errors.llmModel ? "border-red-500" : "border-border/30"
+                                        } bg-background`}
+                                    {...register("llmModel")}
+                                    disabled={!selectedProvider || isLoadingModels || selectedProvider === 'Custom'}
+                                    onChange={(e) => {
+                                        const modelName = e.target.value;
+                                        setValue("llmModel", modelName);
+                                        setModel(modelName);
+
+                                        const selectedModelData = availableModels.find(model => model.model === modelName);
+                                        if (selectedModelData) {
+                                            // Auto-fill cost data from API
+                                            setValue("inputCostPer1M", selectedModelData.input_cost_per_1m);
+                                            setValue("outputCostPer1M", selectedModelData.output_cost_per_1m);
+
+                                            // Calculate cost per token (using the higher of input/output cost as base)
+                                            const costPerToken = Math.max(selectedModelData.input_cost_per_1m, selectedModelData.output_cost_per_1m) / 1000000;
+                                            setValue("costPerToken", Number(costPerToken.toFixed(8)));
+                                        } else {
+                                            // Reset costs if no model selected
+                                            setValue("inputCostPer1M", 0);
+                                            setValue("outputCostPer1M", 0);
+                                        }
+                                    }}
+                                >
+                                    <option value="">Select Model</option>
+                                    {availableModels.map((model) => (
+                                        <option key={model.model} value={model.model}>
+                                            {model.model}
+                                        </option>
+                                    ))}
+                                </select>
+                                {isLoadingModels && (
+                                    <p className="text-xs text-muted-foreground mt-1">Loading models...</p>
+                                )}
+                                {modelError && (
+                                    <p className="text-xs text-red-500 mt-1">{modelError}</p>
+                                )}
+                                {selectedProvider === 'Custom' && (
+                                    <p className="text-xs text-muted-foreground mt-1">Enter custom model name manually after generation</p>
+                                )}
+                                {selectedModel && (
+                                    <div className="mt-2 p-2 bg-secondary/10 rounded text-xs">
+                                        <p className="font-medium">Model Costs (per 1M tokens):</p>
+                                        <p>Input: ${selectedModel.input_cost_per_1m.toFixed(6)}</p>
+                                        <p>Output: ${selectedModel.output_cost_per_1m.toFixed(6)}</p>
+                                        {selectedModel.prompt_cache_read_per_1m && (
+                                            <p>Cached: ${selectedModel.prompt_cache_read_per_1m.toFixed(6)}</p>
+                                        )}
+                                    </div>
+                                )}
+                                {errors.llmModel && (
+                                    <p className="text-xs text-red-500">{errors.llmModel.message}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                                <label htmlFor="costPerToken" className="text-sm font-medium">
+                                    Cost Per Token (ETH)
+                                </label>
+                                <input
+                                    id="costPerToken"
+                                    type="number"
+                                    step="0.0001"
+                                    className={`w-full px-3 py-2 border rounded-md ${errors.costPerToken ? "border-red-500" : "border-border/30"
+                                        } bg-background`}
+                                    placeholder="0.0005"
+                                    {...register("costPerToken")}
+                                />
+                                {errors.costPerToken && (
+                                    <p className="text-xs text-red-500">{errors.costPerToken.message}</p>
+                                )}
+                                {selectedModel && currentInputCost != null && currentOutputCost != null && (currentInputCost > 0 || currentOutputCost > 0) && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Auto-calculated from model's higher cost (Input: ${currentInputCost.toFixed(6)}, Output: ${currentOutputCost.toFixed(6)})
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="inputCostPer1M" className="text-sm font-medium">
+                                    Input Cost per 1M (From API)
+                                </label>
+                                <input
+                                    id="inputCostPer1M"
+                                    type="number"
+                                    step="0.01"
+                                    className="w-full px-3 py-2 border border-border/30 rounded-md bg-muted cursor-not-allowed"
+                                    placeholder="0"
+                                    disabled
+                                    {...register("inputCostPer1M")}
+                                />
+                                {selectedModel && currentInputCost != null && currentInputCost > 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                        ${currentInputCost.toFixed(6)} per 1M tokens
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="outputCostPer1M" className="text-sm font-medium">
+                                    Output Cost per 1M (From API)
+                                </label>
+                                <input
+                                    id="outputCostPer1M"
+                                    type="number"
+                                    step="0.01"
+                                    className="w-full px-3 py-2 border border-border/30 rounded-md bg-muted cursor-not-allowed"
+                                    placeholder="0"
+                                    disabled
+                                    {...register("outputCostPer1M")}
+                                />
+                                {selectedModel && currentOutputCost != null && currentOutputCost > 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                        ${currentOutputCost.toFixed(6)} per 1M tokens
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -327,14 +536,30 @@ export function AgentCardGenerator({
                     <div className="space-y-4">
                         <h3 className="text-sm font-medium border-b pb-2">Features & Capabilities</h3>
 
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                             <label className="flex items-center space-x-2">
                                 <input
                                     type="checkbox"
                                     className="rounded border-border/30"
                                     {...register("streamingSupport")}
                                 />
-                                <span className="text-sm">Streaming Support</span>
+                                <span className="text-sm">Legacy Streaming Support</span>
+                            </label>
+                            <label className="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    className="rounded border-border/30"
+                                    {...register("supportsStreaming")}
+                                />
+                                <span className="text-sm">Supports Streaming</span>
+                            </label>
+                            <label className="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    className="rounded border-border/30"
+                                    {...register("supportsMultiAgent")}
+                                />
+                                <span className="text-sm">Multi-Agent System</span>
                             </label>
                             <label className="flex items-center space-x-2">
                                 <input
@@ -352,6 +577,20 @@ export function AgentCardGenerator({
                                 />
                                 <span className="text-sm">File Upload Support</span>
                             </label>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label htmlFor="maxTotalAgentCost" className="text-sm font-medium">
+                                Max Total Agent Cost (Optional)
+                            </label>
+                            <input
+                                id="maxTotalAgentCost"
+                                type="number"
+                                step="0.01"
+                                className="w-full px-3 py-2 border border-border/30 rounded-md bg-background"
+                                placeholder="1.0"
+                                {...register("maxTotalAgentCost")}
+                            />
                         </div>
 
                         <div className="space-y-2">
