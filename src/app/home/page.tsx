@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { WalletConnection } from "@/components/wallet/wallet-connection";
 import { StakingDashboard } from "@/components/wallet/staking-dashboard";
-import { YourAgents } from "@/components/agents/your-agents";
+import { AgentMarketplace } from "@/components/agents/agent-marketplace";
 import { StakedAgents } from "@/components/agents/staked-agents";
 import { useStake } from "@/hooks/contracts";
 // Dummy staking data for demo
@@ -72,7 +72,7 @@ export default function Home() {
           {selectedSection === 'your-agents' && (
             <section>
               <h2 className="text-xl font-semibold mb-6">Deployed Agents</h2>
-              <YourAgents />
+              <AgentMarketplace />
             </section>
           )}
 
