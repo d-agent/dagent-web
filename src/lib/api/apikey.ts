@@ -92,7 +92,7 @@ export class ApiKeyService {
   ): Promise<CreateApiKeyResponse> {
     try {
       const response: AxiosResponse<CreateApiKeyResponse> =
-        await apiClient.post("/api-key/create", data);
+        await apiClient.post("/apikey/create", data);
       return response.data;
     } catch (error: any) {
       throw new Error(

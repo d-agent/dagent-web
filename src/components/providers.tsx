@@ -4,7 +4,6 @@ import { createConfig, http, WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { mainnet } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
-import { AuthProvider } from "./auth-provider";
 
 const queryClient = new QueryClient();
 
@@ -20,9 +19,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return (
         <QueryClientProvider client={queryClient}>
             <WagmiProvider config={config}>
-                <AuthProvider>
+                {/* <AuthProvider> */}
                     {children}
-                </AuthProvider>
+                {/* </AuthProvider> */}
             </WagmiProvider>
         </QueryClientProvider>
     );

@@ -38,7 +38,7 @@ interface ExpandableAgentCardsProps {
 
 export function ExpandableAgentCards({ agents }: ExpandableAgentCardsProps) {
     const [active, setActive] = useState<AgentCardData | null>(null);
-    const ref = useRef<HTMLDivElement>();
+    const ref = useRef<HTMLDivElement>(null);
     const id = useId();
 
     useEffect(() => {
@@ -58,7 +58,7 @@ export function ExpandableAgentCards({ agents }: ExpandableAgentCardsProps) {
         return () => window.removeEventListener("keydown", onKeyDown);
     }, [active]);
 
-    useOutsideClick(ref, () => setActive(null));
+    useOutsideClick(ref as React.RefObject<HTMLElement>, () => setActive(null));
 
     const renderStars = (rating: number) => {
         return Array.from({ length: 5 }, (_, i) => (
@@ -316,7 +316,7 @@ export function ExpandableAgentCards({ agents }: ExpandableAgentCardsProps) {
                     >
                         <div className="flex gap-4 flex-col md:flex-row w-full md:w-auto">
                             {/* <motion.div layoutId={`image-${agent.title}-${id}`}> */}
-                                {/* <div className="h-24 w-24 md:h-16 md:w-16 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20">
+                            {/* <div className="h-24 w-24 md:h-16 md:w-16 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20">
                                     <IconRobot size={20} className="text-primary" />
                                 </div> */}
                             {/* </motion.div> */}
