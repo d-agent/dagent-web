@@ -26,11 +26,24 @@ export type AgentFormValues = z.infer<typeof agentFormSchema> & {
   cardJson?: FileList;
 };
 
-// Agent Card JSON schema (partial validation to ensure critical fields exist)
+// Agent Card JSON schema with updated structure
 export const agentCardSchema = z.object({
   name: z.string(),
   description: z.string(),
   version: z.string(),
+  llmProvider: z.string(),
+  llmModel: z.string(),
+  costPerToken: z.number(),
+  inputCostPer1M: z.number().optional(),
+  outputCostPer1M: z.number().optional(),
+
+  // New fields for requirements matching
+  skills: z.array(z.string()).optional(),
+  supportsStreaming: z.boolean().optional(),
+  supportsMultiAgent: z.boolean().optional(),
+  maxTotalAgentCost: z.number().optional(),
+
+  // Existing optional fields
   endpoints: z
     .array(
       z.object({

@@ -1,37 +1,13 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { agentFormSchema, type AgentFormValues, agentCardSchema } from '@/lib/validation/agent-schema';
 import { AgentCardGenerator } from '@/components/agent-card-generator';
+import { useLLM } from '@/hooks';
 import { toast } from 'sonner';
-
-// Interface for LLM model cost data
-interface LLMModelCost {
-    provider: string;
-    model: string;
-    operator: string;
-    input_cost_per_1m: number;
-    output_cost_per_1m: number;
-    prompt_cache_read_per_1m?: number;
-    show_in_playground?: boolean;
-}
-
-// Interface for the Helicone API response
-interface HeliconeCostResponse {
-    metadata: {
-        total_models: number;
-        note: string;
-        operators_explained: {
-            equals: string;
-            startsWith: string;
-            includes: string;
-        }
-    };
-    data: LLMModelCost[];
-}
 
 export default function AddAgentPage() {
     // Track the JSON content from the uploaded file
@@ -45,10 +21,20 @@ export default function AddAgentPage() {
     // Reference to the file input element
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    // State for LLM provider models
-    const [availableModels, setAvailableModels] = useState<LLMModelCost[]>([]);
-    const [isLoadingModels, setIsLoadingModels] = useState(false);
-    const [modelError, setModelError] = useState<string | null>(null); const {
+    // Use LLM hook for provider and model management
+    const {
+        providers,
+        models: availableModels,
+        selectedProvider,
+        selectedModel,
+        isLoadingModels,
+        error: modelError,
+        setProvider,
+        setModel,
+        clearError,
+    } = useLLM({ autoFetchOnProviderChange: true });
+
+    const {
         register,
         handleSubmit,
         formState: { errors, isSubmitting },
@@ -67,57 +53,6 @@ export default function AddAgentPage() {
             outputCostPer1M: 0,
         },
     });
-
-    // Watch the llmProvider value to fetch models when it changes
-    const selectedProvider = watch("llmProvider");
-
-    // Function to fetch models from Helicone API
-    const fetchModelsForProvider = async (provider: string) => {
-        if (!provider) return;
-
-        setIsLoadingModels(true);
-        setModelError(null);
-
-        try {
-            const response = await fetch(`https://www.helicone.ai/api/llm-costs?provider=${provider.toLowerCase()}`);
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch models: ${response.status} ${response.statusText}`);
-            }
-
-            const data: HeliconeCostResponse = await response.json();
-
-            // Filter models to only include those that are shown in playground for better selection
-            const filteredModels = data.data
-                .filter(model => model.show_in_playground === true || model.provider.toUpperCase() === provider.toUpperCase())
-                .sort((a, b) => a.model.localeCompare(b.model));
-
-            setAvailableModels(filteredModels);
-
-            // Clear any previously selected model
-            setValue("llmModel", "");
-            setValue("inputCostPer1M", 0);
-            setValue("outputCostPer1M", 0);
-        } catch (error) {
-            console.error("Error fetching models:", error);
-            setModelError("Failed to load models. Please try again.");
-            setAvailableModels([]);
-        } finally {
-            setIsLoadingModels(false);
-        }
-    };
-
-    // Update models when provider changes
-    useEffect(() => {
-        if (selectedProvider) {
-            fetchModelsForProvider(selectedProvider);
-        } else {
-            setAvailableModels([]);
-            setValue("llmModel", "");
-            setValue("inputCostPer1M", 0);
-            setValue("outputCostPer1M", 0);
-        }
-    }, [selectedProvider, setValue]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -204,10 +139,25 @@ export default function AddAgentPage() {
         }
 
         try {
-            // Combine form data and parsed JSON
+            // Parse the JSON card
+            const parsedCard = JSON.parse(cardJsonContent);
+
+            // Create combined agent card with form data merged in
+            const agentCard = {
+                ...parsedCard,
+                // Override with form data where applicable
+                name: data.agentName,
+                description: data.agentDescription,
+                llmProvider: data.llmProvider,
+                llmModel: data.llmModel,
+                costPerToken: data.costPerToken,
+                inputCostPer1M: data.inputCostPer1M,
+                outputCostPer1M: data.outputCostPer1M,
+            };
+
             const agentData = {
                 ...data,
-                agentCard: JSON.parse(cardJsonContent),
+                agentCard,
             };
 
             console.log("Submitting agent data:", agentData);
@@ -295,13 +245,22 @@ export default function AddAgentPage() {
                         className={`w-full px-4 py-2 border rounded-md ${errors.llmProvider ? "border-red-500" : "border-border/30"
                             } bg-background`}
                         {...register("llmProvider")}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            setValue("llmProvider", value as any);
+                            setProvider(value);
+                            setValue("llmModel", "");
+                            setValue("inputCostPer1M", 0);
+                            setValue("outputCostPer1M", 0);
+                            clearError();
+                        }}
                     >
                         <option value="">Select LLM Provider</option>
-                        <option value="OpenAI">OpenAI</option>
-                        <option value="Anthropic">Anthropic</option>
-                        <option value="Llama">Llama</option>
-                        <option value="Google">Gemini</option>
-                        <option value="Custom">Custom</option>
+                        {providers.map((provider) => (
+                            <option key={provider.value} value={provider.value}>
+                                {provider.displayName}
+                            </option>
+                        ))}
                     </select>
                     {errors.llmProvider && (
                         <p className="text-sm text-red-500 mt-1">{errors.llmProvider.message}</p>
@@ -320,10 +279,18 @@ export default function AddAgentPage() {
                         {...register("llmModel")}
                         disabled={!selectedProvider || isLoadingModels}
                         onChange={(e) => {
-                            const selectedModel = availableModels.find(model => model.model === e.target.value);
-                            if (selectedModel) {
-                                setValue("inputCostPer1M", selectedModel.input_cost_per_1m);
-                                setValue("outputCostPer1M", selectedModel.output_cost_per_1m);
+                            const modelName = e.target.value;
+                            setValue("llmModel", modelName);
+                            setModel(modelName);
+
+                            const selectedModelData = availableModels.find(model => model.model === modelName);
+                            if (selectedModelData) {
+                                setValue("inputCostPer1M", selectedModelData.input_cost_per_1m);
+                                setValue("outputCostPer1M", selectedModelData.output_cost_per_1m);
+
+                                // Auto-calculate cost per token (using the higher of input/output cost as base)
+                                const costPerToken = Math.max(selectedModelData.input_cost_per_1m, selectedModelData.output_cost_per_1m) / 1000000;
+                                setValue("costPerToken", Number(costPerToken.toFixed(8)));
                             } else {
                                 setValue("inputCostPer1M", 0);
                                 setValue("outputCostPer1M", 0);
@@ -371,6 +338,47 @@ export default function AddAgentPage() {
                     {errors.costPerToken && (
                         <p className="text-sm text-red-500 mt-1">{errors.costPerToken.message}</p>
                     )}
+                </div>
+
+                {/* API Cost Data (Read-only) */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label htmlFor="inputCostPer1M" className="text-sm font-medium block">
+                            Input Cost per 1M (From API)
+                        </label>
+                        <input
+                            id="inputCostPer1M"
+                            type="number"
+                            step="0.01"
+                            className="w-full px-4 py-2 border border-border/30 rounded-md bg-muted cursor-not-allowed"
+                            disabled
+                            {...register("inputCostPer1M")}
+                        />
+                        {watch("inputCostPer1M") != null && watch("inputCostPer1M")! > 0 && (
+                            <p className="text-sm text-muted-foreground">
+                                ${watch("inputCostPer1M")!.toFixed(6)} per million tokens
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <label htmlFor="outputCostPer1M" className="text-sm font-medium block">
+                            Output Cost per 1M (From API)
+                        </label>
+                        <input
+                            id="outputCostPer1M"
+                            type="number"
+                            step="0.01"
+                            className="w-full px-4 py-2 border border-border/30 rounded-md bg-muted cursor-not-allowed"
+                            disabled
+                            {...register("outputCostPer1M")}
+                        />
+                        {watch("outputCostPer1M") != null && watch("outputCostPer1M")! > 0 && (
+                            <p className="text-sm text-muted-foreground">
+                                ${watch("outputCostPer1M")!.toFixed(6)} per million tokens
+                            </p>
+                        )}
+                    </div>
                 </div>
 
                 {/* Agent Card JSON Upload */}
