@@ -8,14 +8,15 @@ import { agentFormSchema, type AgentFormValues, agentCardSchema } from '@/lib/va
 import { AgentCardGenerator } from '@/components/agent-card-generator';
 import { useLLM } from '@/hooks';
 import { toast } from 'sonner';
+import { useCreateAgent } from '@/hooks/agent';
 
 export default function AddAgentPage() {
-    // Track the JSON content from the uploaded file
     const [cardJsonContent, setCardJsonContent] = useState<string | null>(null);
     const [cardJsonValid, setCardJsonValid] = useState<boolean | null>(null);
     const [cardJsonError, setCardJsonError] = useState<string | null>(null);
+    const mutation= useCreateAgent()
 
-    // State for the agent card generator dialog
+// State for the agent card generator dialog
     const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
 
     // Reference to the file input element
@@ -161,6 +162,7 @@ export default function AddAgentPage() {
             };
 
             console.log("Submitting agent data:", agentData);
+            mutation.mutate(agentCard)
 
             // Here you would typically send this data to your API
             // await fetch('/api/agents', { method: 'POST', body: JSON.stringify(agentData) });
