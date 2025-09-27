@@ -52,7 +52,7 @@ export const StakingDashboard: React.FC<StakingDashboardProps> = ({
 }) => {
   const [isStakePopupOpen, setIsStakePopupOpen] = useState(false);
   
-  const { stakeFn } = useStake();
+  // const { stakeFn } = useStake();
 
   const handleStakeAction = async (data: {
     action: "stake" | "pull";
@@ -63,7 +63,7 @@ export const StakingDashboard: React.FC<StakingDashboardProps> = ({
       console.log('Staking action:', data);
       
       if (data.action === 'stake') {
-        await stakeFn();
+        // await stakeFn();
         console.log(`Successfully staked ${data.amount} ETH`);
       } else {
         console.log(`Unstaking ${data.amount} ETH`);
@@ -104,7 +104,7 @@ export const StakingDashboard: React.FC<StakingDashboardProps> = ({
 
   const handleStakkk = async () => {
     console.log("Stakkk function triggered");
-   const result = stakeFn();  // simulate with 0.05 ETH
+  //  const result = stakeFn();  // simulate with 0.05 ETH
   };
 
   return (
