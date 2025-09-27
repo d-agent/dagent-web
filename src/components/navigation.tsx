@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/resizable-navbar";
 import LoginWithEthereum from "./siew";
 import { useAccount, useDisconnect } from "wagmi";
+import { useAuth } from "./auth-provider";
 
 // Navigation items
 const navItems = [
@@ -39,7 +40,7 @@ const navItems = [
     name: "Add Agents",
     link: "/add-agents",
   },
- 
+
   {
     name: "Wallets",
     link: "/wallet",
@@ -50,26 +51,17 @@ export function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
   const { address, isConnected } = useAccount();
+  const { isAuthenticated, logout } = useAuth();
+  const router = useRouter();
 
-  const router= useRouter()
-  const { disconnect, disconnectAsync,  } = useDisconnect();
   const handleDisconnect = async () => {
     try {
-      await disconnectAsync(); 
-      console.log("Disconnected (wagmi)");
-      setIsMenuOpen(false)
-      router.push('/')
+      await logout();
+      setIsMenuOpen(false);
     } catch (err) {
       console.error("disconnect failed", err);
-
     }
   };
-  
-  useEffect(()=>{
-    if (!isConnected) {
-      router.push('/');
-    }
-  },[isConnected, router])
 
   return (
     <>
@@ -92,7 +84,12 @@ export function Navigation() {
           </div>
 
           {/* Center - Navigation Items */}
-          <NavItems items={navItems} currentPath={pathname} />
+          <NavItems
+            items={navItems}
+            currentPath={pathname}
+            disabled={!isAuthenticated}
+            disabledTooltip="Connect your wallet to access this feature"
+          />
 
           {/* Right side - Auth button */}
           <div className="relative z-20 flex items-center gap-2">
@@ -142,15 +139,27 @@ export function Navigation() {
             <div className="flex w-full flex-col space-y-2 pb-4">
               {navItems.map((item, idx) => {
                 const isActive = pathname === item.link;
+
+                if (!isAuthenticated) {
+                  return (
+                    <div
+                      key={`mobile-disabled-link-${idx}`}
+                      className="w-full rounded-md px-4 py-2 text-sm transition-colors cursor-not-allowed opacity-50 text-neutral-400 dark:text-neutral-600 relative group"
+                      title="Connect your wallet to access this feature"
+                    >
+                      {item.name}
+                    </div>
+                  );
+                }
+
                 return (
                   <Link
                     key={`mobile-link-${idx}`}
                     href={item.link}
-                    className={`w-full rounded-md px-4 py-2 text-sm transition-colors ${
-                      isActive
+                    className={`w-full rounded-md px-4 py-2 text-sm transition-colors ${isActive
                         ? "bg-blue-100 text-blue-600 font-semibold dark:bg-blue-900/30 dark:text-blue-400"
                         : "hover:bg-secondary/80 text-neutral-600 dark:text-neutral-300"
-                    }`}
+                      }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
                     {item.name}
@@ -180,7 +189,7 @@ export function Navigation() {
             </div>
           </MobileNavMenu>
         </MobileNav>
-       
+
       </Navbar>
     </>
   );
