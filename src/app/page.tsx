@@ -97,9 +97,9 @@ export default function Home() {
           <div className="text-center space-y-8">
             <div className="space-y-4">
               <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight">
-                Build AI Agents for{" "}
+                Your All In One Marketplace for{" "}
                 <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                  Web3
+                  AI and Blockchain
                 </span>
               </h1>
               <p className="text-xl sm:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
