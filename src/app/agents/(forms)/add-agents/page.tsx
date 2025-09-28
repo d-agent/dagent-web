@@ -1,27 +1,16 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { agentFormSchema, type AgentFormValues, agentCardSchema } from '@/lib/validation/agent-schema';
-import { AgentCardGenerator } from '@/components/agent-card-generator';
-import { useLLM } from '@/hooks';
 import { toast } from 'sonner';
+import { useLLM } from '@/hooks/useLLM';
+import { useCreateAgent } from '@/hooks/agent';
 
 export default function AddAgentPage() {
-    // Track the JSON content from the uploaded file
-    const [cardJsonContent, setCardJsonContent] = useState<string | null>(null);
-    const [cardJsonValid, setCardJsonValid] = useState<boolean | null>(null);
-    const [cardJsonError, setCardJsonError] = useState<string | null>(null);
-
-    // State for the agent card generator dialog
-    const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
-
-    // Reference to the file input element
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
-
     // Use LLM hook for provider and model management
+
+    const {mutateAsync: CreateAgentMutation } = useCreateAgent();
+
     const {
         providers,
         models: availableModels,
@@ -41,136 +30,51 @@ export default function AddAgentPage() {
         reset,
         watch,
         setValue,
-    } = useForm<AgentFormValues>({
-        resolver: zodResolver(agentFormSchema) as any, // Type casting to avoid TypeScript errors
+    } = useForm({
         defaultValues: {
-            agentName: "",
-            agentDescription: "",
-            costPerToken: 0.0005,
-            llmProvider: undefined,
+            name: "",
+            description: "",
+            agentCost: "",
+            deployedUrl: "",
+            llmProvider: "",
             llmModel: "",
             inputCostPer1M: 0,
             outputCostPer1M: 0,
+            skills: "",
+            is_multiAgentSystem: "false",
+            default_agent_name: "",
+            framework_used: "",
+            can_stream: "false",
         },
     });
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) {
-            setCardJsonContent(null);
-            setCardJsonValid(null);
-            setCardJsonError(null);
-            return;
-        }
 
-        // Ensure it's a JSON file
-        if (file.type !== "application/json" && !file.name.endsWith('.json')) {
-            setCardJsonError("Please upload a valid JSON file");
-            setCardJsonValid(false);
-            setCardJsonContent(null);
-            return;
-        }
 
-        // Read and parse the JSON file
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const content = e.target?.result as string;
-                // Parse and validate against our schema
-                const jsonData = JSON.parse(content);
-
-                // Use Zod to validate the card structure
-                const result = agentCardSchema.safeParse(jsonData);
-
-                if (result.success) {
-                    setCardJsonContent(content);
-                    setCardJsonValid(true);
-                    setCardJsonError(null);
-                } else {
-                    // Format Zod error messages
-                    const formattedErrors = result.error.issues.map(err =>
-                        `${err.path.join('.')}: ${err.message}`
-                    ).join('; ');
-
-                    setCardJsonError(`Invalid agent card format: ${formattedErrors}`);
-                    setCardJsonValid(false);
-                    setCardJsonContent(content); // Still show the content for reference
-                }
-            } catch (error) {
-                setCardJsonError("Invalid JSON format");
-                setCardJsonValid(false);
-                setCardJsonContent(null);
-            }
-        };
-        reader.readAsText(file);
-    };
-
-    // Handle the generated JSON from the dialog
-    const handleGeneratedJson = (jsonContent: string, jsonFile: File) => {
-        // Set the JSON content and validity
-        setCardJsonContent(jsonContent);
-        setCardJsonValid(true);
-        setCardJsonError(null);
-
-        // Close the dialog
-        setIsGeneratorOpen(false);
-
+    const onSubmit = async (data: any) => {
         try {
-            // Create a DataTransfer object to simulate a file upload
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(jsonFile);
-
-            // Update the file input with the generated file
-            if (fileInputRef.current) {
-                fileInputRef.current.files = dataTransfer.files;
-            }
-        } catch (error) {
-            // DataTransfer might not be available in some browsers
-            console.error("Couldn't set file input value:", error);
-            // We still have the JSON content, so the form will work
-        }
-    };
-
-    const onSubmit = async (data: AgentFormValues) => {
-        // Make sure we have valid JSON
-        if (!cardJsonContent || !cardJsonValid) {
-            setCardJsonError("Valid agent card.json is required");
-            return;
-        }
-
-        try {
-            // Parse the JSON card
-            const parsedCard = JSON.parse(cardJsonContent);
-
-            // Create combined agent card with form data merged in
-            const agentCard = {
-                ...parsedCard,
-                // Override with form data where applicable
-                name: data.agentName,
-                description: data.agentDescription,
-                llmProvider: data.llmProvider,
-                llmModel: data.llmModel,
-                costPerToken: data.costPerToken,
-                inputCostPer1M: data.inputCostPer1M,
-                outputCostPer1M: data.outputCostPer1M,
-            };
-
-            const agentData = {
+            // Convert skills string to array
+            const formattedData = {
                 ...data,
-                agentCard,
+                skills: data.skills.split(',').map((skill: string) => skill.trim()).filter(Boolean),
+                is_multiAgentSystem: data.is_multiAgentSystem === "true",
+                can_stream: data.can_stream === "true",
+                agentCost: data.agentCost,
+                inputCostPer1M: Number(data.inputCostPer1M),
+                outputCostPer1M: Number(data.outputCostPer1M),
+                // Clear default_agent_name if not multi-agent system
+                default_agent_name: data.is_multiAgentSystem === "true" ? data.default_agent_name : "",
             };
 
-            console.log("Submitting agent data:", agentData);
-
+            console.log("Submitting agent data:", formattedData);
+            await CreateAgentMutation(formattedData);
             // Here you would typically send this data to your API
-            // await fetch('/api/agents', { method: 'POST', body: JSON.stringify(agentData) });
+            // await fetch('/api/agents', { method: 'POST', body: JSON.stringify(formattedData) });
 
             toast.success("Agent added successfully!");
             reset();
-            setCardJsonContent(null);
-            setCardJsonValid(null);
         } catch (error) {
             console.error("Error submitting form:", error);
+            toast.error("Failed to add agent. Please try again.");
         }
     };
 
@@ -202,36 +106,73 @@ export default function AddAgentPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
                 {/* Agent Name */}
                 <div className="space-y-2">
-                    <label htmlFor="agentName" className="text-sm font-medium block">
+                    <label htmlFor="name" className="text-sm font-medium block">
                         Agent Name
                     </label>
                     <input
-                        id="agentName"
+                        id="name"
                         type="text"
-                        className={`w-full px-4 py-2 border rounded-md ${errors.agentName ? "border-red-500" : "border-border/30"
+                        className={`w-full px-4 py-2 border rounded-md ${errors.name ? "border-red-500" : "border-border/30"
                             } bg-background`}
                         placeholder="e.g. Document Assistant"
-                        {...register("agentName")}
+                        {...register("name")}
                     />
-                    {errors.agentName && (
-                        <p className="text-sm text-red-500 mt-1">{errors.agentName.message}</p>
+                    {errors.name && (
+                        <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>
                     )}
                 </div>
 
                 {/* Agent Description */}
                 <div className="space-y-2">
-                    <label htmlFor="agentDescription" className="text-sm font-medium block">
+                    <label htmlFor="description" className="text-sm font-medium block">
                         Agent Description
                     </label>
                     <textarea
-                        id="agentDescription"
-                        className={`w-full px-4 py-2 border rounded-md ${errors.agentDescription ? "border-red-500" : "border-border/30"
+                        id="description"
+                        className={`w-full px-4 py-2 border rounded-md ${errors.description ? "border-red-500" : "border-border/30"
                             } bg-background min-h-[120px]`}
                         placeholder="Describe what this agent does and how it can help users"
-                        {...register("agentDescription")}
+                        {...register("description")}
                     />
-                    {errors.agentDescription && (
-                        <p className="text-sm text-red-500 mt-1">{errors.agentDescription.message}</p>
+                    {errors.description && (
+                        <p className="text-sm text-red-500 mt-1">{errors.description.message}</p>
+                    )}
+                </div>
+
+                {/* Agent Cost */}
+                <div className="space-y-2">
+                    <label htmlFor="agentCost" className="text-sm font-medium block">
+                        Agent Cost (ETH)
+                    </label>
+                    <input
+                        id="agentCost"
+                        type="number"
+                        step="0.0001"
+                        className={`w-full px-4 py-2 border rounded-md ${errors.agentCost ? "border-red-500" : "border-border/30"
+                            } bg-background`}
+                        placeholder="0.0005"
+                        {...register("agentCost")}
+                    />
+                    {errors.agentCost && (
+                        <p className="text-sm text-red-500 mt-1">{errors.agentCost.message}</p>
+                    )}
+                </div>
+
+                {/* Deployed URL */}
+                <div className="space-y-2">
+                    <label htmlFor="deployedUrl" className="text-sm font-medium block">
+                        Deployed URL
+                    </label>
+                    <input
+                        id="deployedUrl"
+                        type="url"
+                        className={`w-full px-4 py-2 border rounded-md ${errors.deployedUrl ? "border-red-500" : "border-border/30"
+                            } bg-background`}
+                        placeholder="https://your-agent.example.com"
+                        {...register("deployedUrl")}
+                    />
+                    {errors.deployedUrl && (
+                        <p className="text-sm text-red-500 mt-1">{errors.deployedUrl.message}</p>
                     )}
                 </div>
 
@@ -247,7 +188,7 @@ export default function AddAgentPage() {
                         {...register("llmProvider")}
                         onChange={(e) => {
                             const value = e.target.value;
-                            setValue("llmProvider", value as any);
+                            setValue("llmProvider", value);
                             setProvider(value);
                             setValue("llmModel", "");
                             setValue("inputCostPer1M", 0);
@@ -287,10 +228,6 @@ export default function AddAgentPage() {
                             if (selectedModelData) {
                                 setValue("inputCostPer1M", selectedModelData.input_cost_per_1m);
                                 setValue("outputCostPer1M", selectedModelData.output_cost_per_1m);
-
-                                // Auto-calculate cost per token (using the higher of input/output cost as base)
-                                const costPerToken = Math.max(selectedModelData.input_cost_per_1m, selectedModelData.output_cost_per_1m) / 1000000;
-                                setValue("costPerToken", Number(costPerToken.toFixed(8)));
                             } else {
                                 setValue("inputCostPer1M", 0);
                                 setValue("outputCostPer1M", 0);
@@ -318,25 +255,6 @@ export default function AddAgentPage() {
                             <p>Input cost: ${watch("inputCostPer1M")!.toFixed(6)} per million tokens</p>
                             <p>Output cost: ${watch("outputCostPer1M")!.toFixed(6)} per million tokens</p>
                         </div>
-                    )}
-                </div>
-
-                {/* Cost Per Token */}
-                <div className="space-y-2">
-                    <label htmlFor="costPerToken" className="text-sm font-medium block">
-                        Cost Per Token (ETH)
-                    </label>
-                    <input
-                        id="costPerToken"
-                        type="number"
-                        step="0.0001"
-                        className={`w-full px-4 py-2 border rounded-md ${errors.costPerToken ? "border-red-500" : "border-border/30"
-                            } bg-background`}
-                        placeholder="0.0005"
-                        {...register("costPerToken")}
-                    />
-                    {errors.costPerToken && (
-                        <p className="text-sm text-red-500 mt-1">{errors.costPerToken.message}</p>
                     )}
                 </div>
 
@@ -381,84 +299,132 @@ export default function AddAgentPage() {
                     </div>
                 </div>
 
-                {/* Agent Card JSON Upload */}
+                {/* Skills */}
                 <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <label htmlFor="cardJson" className="text-sm font-medium block">
-                            Agent Card JSON
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setIsGeneratorOpen(true)}
-                                className="text-xs text-primary hover:underline flex items-center gap-1"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M12 5v14M5 12h14" />
-                                </svg>
-                                Generate JSON
-                            </button>
-                            <a
-                                href="/sample-agent-card.json"
-                                download
-                                className="text-xs text-primary hover:underline flex items-center gap-1"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                    <polyline points="7 10 12 15 17 10" />
-                                    <line x1="12" y1="15" x2="12" y2="3" />
-                                </svg>
-                                Download Sample
-                            </a>
-                        </div>
-                    </div>
-                    <div className={`border ${cardJsonValid === false ? "border-red-500" : cardJsonValid ? "border-green-500" : "border-border/30"} rounded-md p-4 bg-background`}>
-                        <input
-                            id="cardJson"
-                            type="file"
-                            accept=".json,application/json"
-                            onChange={handleFileChange}
-                            className="w-full"
-                            ref={fileInputRef}
-                        />
-                        <p className="text-xs text-muted-foreground mt-2">
-                            Upload the agent card.json file containing metadata, endpoints, and authentication details
-                        </p>
-                    </div>
-                    {cardJsonError && (
-                        <p className="text-sm text-red-500 mt-1">{cardJsonError}</p>
+                    <label htmlFor="skills" className="text-sm font-medium block">
+                        Skills (comma-separated)
+                    </label>
+                    <input
+                        id="skills"
+                        type="text"
+                        className={`w-full px-4 py-2 border rounded-md ${errors.skills ? "border-red-500" : "border-border/30"
+                            } bg-background`}
+                        placeholder="e.g. Trading, Market Analysis, Risk Management"
+                        {...register("skills")}
+                    />
+                    {errors.skills && (
+                        <p className="text-sm text-red-500 mt-1">{errors.skills.message}</p>
                     )}
-                    {cardJsonValid && (
-                        <p className="text-sm text-green-500 mt-1">JSON format validated</p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                        The agent card describes your agent&apos;s identity, service endpoints, supported features,
-                        authentication requirements, and response schema. Clients use this to discover and interact with your agent.
-                    </p>
                 </div>
 
-                {/* Agent Card Generator Dialog */}
-                <AgentCardGenerator
-                    isOpen={isGeneratorOpen}
-                    onClose={() => setIsGeneratorOpen(false)}
-                    onGenerate={handleGeneratedJson}
-                />
+                {/* Multi-Agent System Toggle */}
+                <div className="space-y-2">
+                    <label className="text-sm font-medium block">
+                        Is Multi-Agent System?
+                    </label>
+                    <div className="flex gap-4">
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="radio"
+                                value="true"
+                                {...register("is_multiAgentSystem")}
+                                className="w-4 h-4"
+                            />
+                            <span>Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="radio"
+                                value="false"
+                                {...register("is_multiAgentSystem")}
+                                className="w-4 h-4"
+                            />
+                            <span>No</span>
+                        </label>
+                    </div>
+                    {errors.is_multiAgentSystem && (
+                        <p className="text-sm text-red-500 mt-1">{errors.is_multiAgentSystem.message}</p>
+                    )}
+                </div>
 
-                {/* JSON Preview */}
-                {cardJsonContent && (
+                {/* Default Agent Name - only show if multi-agent system is true */}
+                {watch("is_multiAgentSystem") === "true" && (
                     <div className="space-y-2">
-                        <h3 className="text-sm font-medium">Card JSON Preview</h3>
-                        <div className="bg-secondary/10 rounded-md p-4 max-h-[200px] overflow-auto">
-                            <pre className="text-xs whitespace-pre-wrap">{cardJsonContent}</pre>
-                        </div>
+                        <label htmlFor="default_agent_name" className="text-sm font-medium block">
+                            Default Agent Name
+                        </label>
+                        <input
+                            id="default_agent_name"
+                            type="text"
+                            className={`w-full px-4 py-2 border rounded-md ${errors.default_agent_name ? "border-red-500" : "border-border/30"
+                                } bg-background`}
+                            placeholder="e.g. Main Coordinator Agent"
+                            {...register("default_agent_name")}
+                        />
+                        {errors.default_agent_name && (
+                            <p className="text-sm text-red-500 mt-1">{errors.default_agent_name.message}</p>
+                        )}
                     </div>
                 )}
+
+                {/* Framework Used */}
+                <div className="space-y-2">
+                    <label htmlFor="framework_used" className="text-sm font-medium block">
+                        Framework Used
+                    </label>
+                    <select
+                        id="framework_used"
+                        className={`w-full px-4 py-2 border rounded-md ${errors.framework_used ? "border-red-500" : "border-border/30"
+                            } bg-background`}
+                        {...register("framework_used")}
+                    >
+                        <option value="">Select Framework</option>
+                        <option value="langgraph">LangGraph</option>
+                        <option value="langchain">LangChain</option>
+                        <option value="autogen">AutoGen</option>
+                        <option value="crewai">CrewAI</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                    {errors.framework_used && (
+                        <p className="text-sm text-red-500 mt-1">{errors.framework_used.message}</p>
+                    )}
+                </div>
+
+                {/* Can Stream Toggle */}
+                <div className="space-y-2">
+                    <label className="text-sm font-medium block">
+                        Can Stream Responses?
+                    </label>
+                    <div className="flex gap-4">
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="radio"
+                                value="true"
+                                {...register("can_stream")}
+                                className="w-4 h-4"
+                            />
+                            <span>Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="radio"
+                                value="false"
+                                {...register("can_stream")}
+                                className="w-4 h-4"
+                            />
+                            <span>No</span>
+                        </label>
+                    </div>
+                    {errors.can_stream && (
+                        <p className="text-sm text-red-500 mt-1">{errors.can_stream.message}</p>
+                    )}
+                </div>
 
                 {/* Submit Button */}
                 <div className="pt-4">
                     <button
                         type="submit"
-                        disabled={isSubmitting || !cardJsonValid}
+                        disabled={isSubmitting}
                         className="px-5 py-2 bg-primary text-primary-foreground rounded-md transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isSubmitting ? "Adding..." : "Add Agent"}

@@ -8,14 +8,13 @@ export * from "./llm.service";
 export * from "./types";
 
 const apiClient = axios.create({
-  baseURL:
-    env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:3000",
+  baseURL: env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true,
 });
 
 // Re-export client for custom API calls
-export { apiClient }
+export { apiClient };

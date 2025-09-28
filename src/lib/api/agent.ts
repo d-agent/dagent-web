@@ -35,7 +35,7 @@ export const createAgentApi = async ({
 }: {
   name: string;
   description: string;
-  agentCost: number;
+  agentCost: string;
   deployedUrl: string;
   llmProvider: string;
   skills: string[];

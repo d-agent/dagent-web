@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SimpleBarChart, SimpleLineChart } from '@/components/ui/simple-charts';
 import { ApiKey } from '@/components/ui/api-key';
 import { useCreateApiKey, useDeleteApiKey, useGetApiKey, useGetApiKeyList } from '@/hooks/apikey';
@@ -59,6 +59,9 @@ export default function ApiManagementPage() {
     const [selectedPermissions, setSelectedPermissions] = useState<string[]>(['read']);
     const {mutateAsync: CreateApiKeyMuatation} = useCreateApiKey();
     const {data} = useGetApiKeyList();
+    useEffect(() => {
+        console.log("Fetched API Keys:", data);
+    }, [data]);
 
     const handleCreateKey = (e: React.FormEvent) => {
         e.preventDefault();

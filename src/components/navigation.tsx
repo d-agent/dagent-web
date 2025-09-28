@@ -59,14 +59,14 @@ export function Navigation() {
         <div className="relative z-20">
           <Link href="/" className="flex items-center gap-2 px-2">
             <Image
-              src="/globe.svg"
+              src="/favicon-32x32.png"
               alt="Logo"
               width={28}
               height={28}
               className="dark:invert"
             />
             <span className="font-semibold text-lg text-primary">
-              AgentHub
+              DAgent
             </span>
           </Link>
         </div>
@@ -83,7 +83,7 @@ export function Navigation() {
         <div className="relative z-20 flex items-center gap-2">
           <NavbarButton
             variant="primary"
-            className="hidden text-white sm:inline-block bg-slate-700"
+            className="hidden text-white sm:inline-block bg-transparent"
           >
             <LoginWithEthereum />
           </NavbarButton>
@@ -102,7 +102,7 @@ export function Navigation() {
               height={24}
               className="dark:invert"
             />
-            <span className="font-semibold text-primary">AgentHub</span>
+            <span className="font-semibold text-primary">DAgent</span>
           </Link>
           <MobileNavToggle
             isOpen={isMenuOpen}
@@ -158,7 +158,7 @@ export function Navigation() {
               <NavbarButton
                 variant="primary"
                 onClick={() => setIsMenuOpen(false)}
-                className="w-full text-center bg-slate-700 text-white"
+                className="w-full text-center text-white"
               >
                 <LoginWithEthereum />
               </NavbarButton>

@@ -139,7 +139,7 @@ Issued At: ${new Date().toISOString()}`
             <div className="flex flex-col items-center gap-4">
                 <div className="flex items-center gap-4">
                     {/* Wallet Circle */}
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full border border-primary/30 flex items-center justify-center">
                         <span className="text-primary font-mono text-sm font-bold">
                             {getInitials(address!)}
                         </span>
@@ -153,7 +153,7 @@ Issued At: ${new Date().toISOString()}`
                         <button
                             onClick={login}
                             disabled={isLoading}
-                            className="flex items-center gap-2 px-4 py-2 bg-primary/20 hover:bg-primary/30 border border-primary/30 rounded-lg text-primary text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-4 py-2 hover:bg-primary/30 border border-primary/30 rounded-lg text-primary text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? (
                                 <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -164,15 +164,6 @@ Issued At: ${new Date().toISOString()}`
                         </button>
                     </div>
                 </div>
-
-                {status && (
-                    <div className={`text-sm px-4 py-2 rounded-lg ${status.includes('✅')
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                        }`}>
-                        {/* {status} */}
-                    </div>
-                )}
             </div>
         )
     }
@@ -185,7 +176,7 @@ Issued At: ${new Date().toISOString()}`
                 className="flex items-center gap-3 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all"
             >
                 {/* Wallet Circle */}
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-400/10 border border-emerald-500/30 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full border border-emerald-500/30 flex items-center justify-center">
                     <span className="text-emerald-400 font-mono text-sm font-bold">
                         {getInitials(address!)}
                     </span>
@@ -273,18 +264,6 @@ Issued At: ${new Date().toISOString()}`
                                 {isLoading ? "Logging out..." : "Disconnect & Logout"}
                             </button>
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Status Message */}
-            {status && (
-                <div className="absolute top-full left-0 mt-2 z-40">
-                    <div className={`text-sm px-4 py-2 rounded-lg ${status.includes('✅')
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                        }`}>
-                        {/* {status} */}
                     </div>
                 </div>
             )}
