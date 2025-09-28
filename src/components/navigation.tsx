@@ -27,10 +27,7 @@ const navItems = [
     name: "Frameworks",
     link: "/framework",
   },
-  {
-    name: "Documentation",
-    link: "/docs",
-  },
+ 
   {
     name: "API Keys",
     link: "/api-manage",

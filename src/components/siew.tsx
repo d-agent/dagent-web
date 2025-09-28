@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react"
 import { useAccount, useConnect, useSignMessage, useDisconnect } from "wagmi"
 import { authClient } from "../lib/auth-client"
 import { IconWallet, IconLogout, IconCopy, IconCheck, IconChevronDown, IconUser } from '@tabler/icons-react'
+import { useRouter } from "next/navigation";
 
 export default function LoginWithEthereum() {
     const { connect, connectors } = useConnect()
@@ -15,8 +16,7 @@ export default function LoginWithEthereum() {
     const [isCopied, setIsCopied] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
-
-    // Close dropdown when clicking outside
+    const router = useRouter()
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -33,7 +33,7 @@ export default function LoginWithEthereum() {
             setStatus("")
 
             if (!isConnected) {
-                await connect({ connector: connectors[0] })
+                 connect({ connector: connectors[0] })
             }
             if (!address) return
 
@@ -68,6 +68,7 @@ Issued At: ${new Date().toISOString()}`
             if (verifyData) {
                 setStatus("✅ Successfully authenticated")
                 setIsAuthenticated(true)
+                router.push('/home')
             } else {
                 setStatus("❌ Authentication failed")
             }

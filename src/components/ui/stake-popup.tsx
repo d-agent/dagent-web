@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useWriteContract } from "wagmi";
+import { parseEther } from "viem";
 import {
     Dialog,
     DialogContent,
@@ -13,6 +15,11 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import {  IconCoins, IconArrowUp, IconArrowDown } from "@tabler/icons-react";
+import { env } from "@/lib/config/env";
+import { useStake, usePullStake } from "@/hooks/contracts";
+import contractData from "@/lib/config/abi/Stake.contract.json";
+
+const abi = contractData.abi;
 
 const stakingSchema = z.object({
     action: z.enum(["stake", "pull"], {
@@ -21,7 +28,7 @@ const stakingSchema = z.object({
     amount: z.coerce
         .number()
         .positive("Amount must be positive")
-        .min(0.001, "Minimum amount is 0.001"),
+        .min(0.000001, "Minimum amount is 0.001"),
     tokenAddress: z.string().min(1, "Token address is required"),
 });
 
@@ -45,6 +52,16 @@ export function StakePopup({
     tokenSymbol = "ETH",
 }: StakePopupProps) {
     const [isProcessing, setIsProcessing] = useState(false);
+    const provider = env.NEXT_PUBLIC_PROVIDER_ADDRESS;
+    const { stakeFn } = useStake();
+    const { writeContract } = useWriteContract();
+
+    // console.log("Provider address:", provider);
+    
+    // Fallback if provider is undefined
+    if (!provider) {
+        console.error("NEXT_PUBLIC_PROVIDER_ADDRESS is not defined in environment variables");
+    }
 
     const {
         register,
@@ -53,26 +70,68 @@ export function StakePopup({
         reset,
         setValue,
         watch,
+        
+
     } = useForm<StakingValues>({
         resolver: zodResolver(stakingSchema) as any,
         defaultValues: {
             action: "stake" as const,
             amount: 0,
-            tokenAddress: "",
+            tokenAddress: provider || "",
         },
     });
 
     const watchedAction = watch("action");
     const watchedAmount = watch("amount");
+    
+
+    const pullFn = (amount: number) => {
+        if (!amount || amount <= 0) {
+            console.log("Invalid amount for pulling");
+            return;
+        }
+        
+        console.log(`Pulling ${amount} ${tokenSymbol}`);
+        writeContract({
+            abi,
+            address: provider as `0x${string}`,
+            functionName: "pullEscrow",
+            args: [parseEther(amount.toString())],
+        });
+    };
 
     const handleStakeAction = async (data: StakingValues) => {
         setIsProcessing(true);
         try {
-            await onStake(data);
-            reset();
-            onClose();
+            if (data.action === "stake") {
+                const availableBalanceNum = parseFloat(availableBalance);
+                if (data.amount > availableBalanceNum) {
+                    throw new Error(`Insufficient balance. Available: ${availableBalance} ${tokenSymbol}`);
+                }
+                const result = stakeFn(data.amount);
+                if (result === null) {
+                    throw new Error("Staking failed - wallet not connected or invalid parameters");
+                }
+                console.log(`Staking ${data.amount} ${tokenSymbol}`);
+            } else if (data.action === "pull") {
+                const stakedBalanceNum = parseFloat(stakedBalance);
+                // if (data.amount > stakedBalanceNum) {
+                //     throw new Error(`Insufficient staked balance. Staked: ${stakedBalance} ${tokenSymbol}`);
+                // }
+                pullFn(data.amount);
+                console.log(`Pulling ${data.amount} ${tokenSymbol}`);
+            }
+            
+            onStake(data);
+            
+            setTimeout(() => {
+                reset();
+                onClose();
+            }, 1000);
+            
         } catch (error) {
             console.error("Staking action failed:", error);
+            alert(`Transaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsProcessing(false);
         }
@@ -219,7 +278,7 @@ export function StakePopup({
                         </label>
                         <div className="font-bold">
 
-                            {"    kldflksfsdkfhdskf"}
+                            {`${provider}`}
                         </div>
                         {errors.tokenAddress && (
                             <p className="text-xs text-red-500">{errors.tokenAddress.message}</p>

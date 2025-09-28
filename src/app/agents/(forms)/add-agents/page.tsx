@@ -7,6 +7,17 @@ import { useLLM } from '@/hooks/useLLM';
 import { useCreateAgent } from '@/hooks/agent';
 
 export default function AddAgentPage() {
+    const [cardJsonContent, setCardJsonContent] = useState<string | null>(null);
+    const [cardJsonValid, setCardJsonValid] = useState<boolean | null>(null);
+    const [cardJsonError, setCardJsonError] = useState<string | null>(null);
+    const mutation= useCreateAgent()
+
+// State for the agent card generator dialog
+    const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
+
+    // Reference to the file input element
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
     // Use LLM hook for provider and model management
 
     const {mutateAsync: CreateAgentMutation } = useCreateAgent();
